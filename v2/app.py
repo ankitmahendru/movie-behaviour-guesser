@@ -8,41 +8,41 @@ from flask_cors import CORS
 import requests
 from functools import lru_cache
 
-# Add your OMDB API key here
-OMDB_API_KEY = "faeba269"  # Replace with your actual key
+# Put your OMDB API key here - get it from omdbapi.com if you dont have one yet
+OMDB_API_KEY = "YOUR_API_KEY_HERE"
 
 app = Flask(__name__)
-# Enable Cross-Origin Resource Sharing so our separate frontend can talk to this API
+# CORS lets the frontend talk to backend without throwing a tantrum
 CORS(app)
 
-# --- Global Constants & State ---
+# --- Global stuff we need ---
 DATASET_FILE = "imdb_top_1000.csv"
 FALLBACK_POSTER = "https://via.placeholder.com/300x450?text=No+Poster"
 
-# In-memory user profile to track preferences for the ML algorithm
-# In a real app, this would be a database model linked to a User ID
+# This tracks what the user likes - basically stalking their preferences lol
+# In a real app you'd use a database but we're keeping it simple here
 user_profile = {
-    "searched_genres": {},   # Frequency map: {'Drama': 5, 'Action': 2}
-    "searched_decades": {},  # Frequency map: {1990: 3}
-    "rating_history": []     # List of minimum ratings user has searched for
+    "searched_genres": {},   # like how many times they searched for Drama vs Action
+    "searched_decades": {},  # are they into old movies or new stuff?
+    "rating_history": []     # what ratings they usually look for
 }
 
-# --- Data Loading & Processing ---
+# --- Loading the movie data ---
 
 def load_data():
     """
-    Attempts to download data from Kaggle. 
-    If it fails (auth issues/connection), loads a robust fallback sample.
+    Tries to download the dataset from Kaggle
+    If that fails (usually does first time), we use backup data so app still works
     """
     df = None
     try:
-        # helpful comment: kagglehub downloads to a specific cache directory
+        # kagglehub downloads stuff to a cache folder somewhere on your computer
         print("⬇️ Attempting to download dataset from Kaggle...")
         path = kagglehub.dataset_download("harshitshankhdhar/imdb-dataset-of-top-1000-movies-and-tv-shows")
         csv_path = os.path.join(path, DATASET_FILE)
         
-        # Check if file exists inside the downloaded path
-        # Note: The actual filename in the dataset might vary, we search for the .csv
+        # The file could be anywhere in the folder so we gotta search for it
+        # kinda annoying but whatever
         for root, dirs, files in os.walk(path):
             for file in files:
                 if file.endswith(".csv"):
@@ -56,7 +56,8 @@ def load_data():
 
     except Exception as e:
         print(f"⚠️ Kaggle load failed ({str(e)}). Using fallback data.")
-        # Fallback data so the app always works
+        # Backup data - just some classic movies everyone knows
+        # atleast the app wont crash if kaggle is being difficult
         data = {
             'Series_Title': ['The Shawshank Redemption', 'The Godfather', 'The Dark Knight', 'Pulp Fiction', 'Forrest Gump', 'Inception', 'Matrix', 'Interstellar', 'Parasite', 'Spirited Away'],
             'Released_Year': [1994, 1972, 2008, 1994, 1994, 2010, 1999, 2014, 2019, 2001],
@@ -77,95 +78,100 @@ def load_data():
         }
         df = pd.DataFrame(data)
 
-    # --- Data Cleaning ---
-    # 1. Round Ratings: Round to nearest 0.5 (e.g., 8.3 -> 8.5)
+    # --- Cleaning up the messy data ---
+    # Round ratings to .5 (cuz who needs 8.73 when 8.5 works fine)
     df['clean_rating'] = df['IMDB_Rating'].apply(lambda x: round(float(x) * 2) / 2)
     
-    # 2. Extract Year and Calculate Decade
+    # Extract year and figure out what decade its from
     df['Released_Year'] = pd.to_numeric(df['Released_Year'], errors='coerce')
-    df = df.dropna(subset=['Released_Year'])
+    df = df.dropna(subset=['Released_Year'])  # drop rows with weird years
     df['decade'] = df['Released_Year'].apply(lambda x: int(x // 10 * 10))
     
-    # 3. Clean Genres - remove spaces after commas
+    # Remove spaces from genre names bcuz they mess things up later
     df['Genre'] = df['Genre'].astype(str).str.replace(' ', '')
     
-    # 4. Ensure Poster Link exists
+    # Make sure theres a poster link, even if its just a placeholder
     if 'Poster_Link' not in df.columns:
         df['Poster_Link'] = FALLBACK_POSTER
     
     return df
 
-# Initialize Data
+# Load the data when server starts
 movies_df = load_data()
 
-# --- Helper Functions ---
+# --- Helper functions that do the actual work ---
 
 def update_user_profile(genres_list, decade, rating):
-    """Updates the global user profile based on search terms."""
-    # Update Genres
+    """Keep track of what the user searches for so we can recommend stuff they actualy like"""
+    # Count how many times they search each genre
     for g in genres_list:
         user_profile['searched_genres'][g] = user_profile['searched_genres'].get(g, 0) + 1
     
-    # Update Decade
+    # Remember what decades they prefer
     if decade:
         user_profile['searched_decades'][decade] = user_profile['searched_decades'].get(decade, 0) + 1
         
-    # Update Rating preference
+    # Keep track of rating preferences
     user_profile['rating_history'].append(float(rating))
 
 def get_weighted_recommendations(df, limit=6):
     """
-    ML Algorithm: Content-Based Filtering with Weighted Scoring
+    The "AI" part - figures out what movies to recommend based on past searches
+    Its not actually AI but it sounds cooler that way lol
     Formula: Score = (GenreMatch * 3) + (DecadeMatch * 2) + (RatingPref * 2) + (BaseBoost * 0.5)
     """
-    # If profile is empty, return top rated movies
+    # If user hasnt searched anything yet, just give them the highest rated stuff
     if not user_profile['searched_genres'] and not user_profile['searched_decades']:
         return df.sort_values(by='IMDB_Rating', ascending=False).head(limit).to_dict('records')
 
-    # 1. Determine User Preferences
+    # Figure out what the user actually likes
     sorted_genres = sorted(user_profile['searched_genres'].items(), key=lambda x: x[1], reverse=True)
-    top_genres = [g[0] for g in sorted_genres[:3]]
+    top_genres = [g[0] for g in sorted_genres[:3]]  # top 3 genres
     
     sorted_decades = sorted(user_profile['searched_decades'].items(), key=lambda x: x[1], reverse=True)
-    top_decades = [d[0] for d in sorted_decades[:2]]
+    top_decades = [d[0] for d in sorted_decades[:2]]  # top 2 decades
     
+    # Average rating they usually search for
     avg_pref_rating = sum(user_profile['rating_history']) / len(user_profile['rating_history']) if user_profile['rating_history'] else 8.0
 
-    # 2. Calculate Score for every movie
+    # Calculate a score for each movie - higher score = better match
     def calculate_score(row):
         score = 0
         
-        # Genre Match (Weight: 3x)
+        # Genre matching is most important (3x multiplier)
         movie_genres = row['Genre'].split(',')
         common_genres = set(movie_genres) & set(top_genres)
         score += len(common_genres) * 3
         
-        # Decade Match (Weight: 2x)
+        # Decade matching matters too (2x multiplier)
         if row['decade'] in top_decades:
             score += 2
             
-        # Rating Preference Match (Weight: 2x)
+        # Prefer movies with ratings they usually search for (2x)
         if row['clean_rating'] >= avg_pref_rating:
             score += 2
             
-        # Base Rating Boost (Weight: 0.5x)
+        # Give a small boost to highly rated movies (0.5x)
+        # because everyoen likes good movies right?
         score += (row['IMDB_Rating'] / 10.0) * 0.5
         
         return score
 
+    # Apply scoring to all movies
     rec_df = df.copy()
     rec_df['score'] = rec_df.apply(calculate_score, axis=1)
     
+    # Sort by score and return top results
     results = rec_df.sort_values(by=['score', 'IMDB_Rating'], ascending=[False, False]).head(limit)
     return results.to_dict('records')
 
-# --- API Endpoints ---
+# --- API endpoints - this is what the frontend calls ---
 
-@lru_cache(maxsize=1000)  # Cache results to avoid repeated API calls
+@lru_cache(maxsize=1000)  # Cache results so we dont spam the API
 def get_high_quality_poster(title, year):
-    """Fetch high-quality poster from OMDB API."""
+    """Grabs better posters from OMDB cuz the dataset ones are tiny and blurry"""
     try:
-        # Clean the title - remove special characters that might break the API call
+        # Clean up the title - remove quotes that break the API
         clean_title = title.replace("'", "").replace('"', '')
         
         url = f"http://www.omdbapi.com/?t={clean_title}&y={int(year)}&apikey={OMDB_API_KEY}"
@@ -181,11 +187,12 @@ def get_high_quality_poster(title, year):
 
 @app.route('/filters', methods=['GET'])
 def get_filters():
-    """Returns available genres, decades and rating steps for dropdowns."""
+    """Sends back all available genres, decades and ratings for the dropdowns"""
+    # Get unique genres from the dataset
     unique_genres = set()
     for g_str in movies_df['Genre']:
         for g in str(g_str).split(','):
-            if g:  # Skip empty strings
+            if g:  # skip empty ones
                 unique_genres.add(g)
             
     unique_decades = sorted(movies_df['decade'].unique().tolist())
@@ -193,12 +200,12 @@ def get_filters():
     return jsonify({
         'genres': sorted(list(unique_genres)),
         'decades': unique_decades,
-        'ratings': [round(x * 0.5, 1) for x in range(10, 21)]
+        'ratings': [round(x * 0.5, 1) for x in range(10, 21)]  # 5.0 to 10.0 in .5 steps
     })
 
 @app.route('/search', methods=['POST'])
 def search_movies():
-    """Filters movies and updates user profile."""
+    """Main search function - filters movies based on what user wants"""
     try:
         data = request.json
         print(f"📥 Received search request: {data}")
@@ -207,12 +214,15 @@ def search_movies():
         decade = data.get('decade', '')
         min_rating = float(data.get('min_rating', 0))
 
+        # Update the user profile with this search
         genre_list = [genre] if genre else []
         update_user_profile(genre_list, int(decade) if decade else None, min_rating)
 
+        # Start filtering the movies
         filtered = movies_df.copy()
         
         if genre:
+            # Check if movie has this genre
             filtered = filtered[filtered['Genre'].str.contains(genre, case=False, na=False)]
             print(f"After genre filter: {len(filtered)} movies")
         
@@ -224,14 +234,16 @@ def search_movies():
             filtered = filtered[filtered['clean_rating'] >= min_rating]
             print(f"After rating filter: {len(filtered)} movies")
             
+        # Get top 10 by rating
         results = filtered.sort_values(by='IMDB_Rating', ascending=False).head(10)
         results_list = results.to_dict('records')
         
-        # Enhance with high-quality posters
+        # Try to get better quality posters
         cleaned_results = []
         for movie in results_list:
             cleaned_movie = {}
             for key, value in movie.items():
+                # Replace NaN and weird values with empty strings so JSON doesnt break
                 if pd.isna(value) or value is None:
                     cleaned_movie[key] = ""
                 elif isinstance(value, float) and (math.isinf(value) or math.isnan(value)):
@@ -239,7 +251,7 @@ def search_movies():
                 else:
                     cleaned_movie[key] = value
             
-            # Try to get high-quality poster
+            # Fetch high quality poster if we have an API key
             if OMDB_API_KEY != "YOUR_API_KEY_HERE":
                 hq_poster = get_high_quality_poster(
                     cleaned_movie.get('Series_Title', ''),
@@ -262,10 +274,11 @@ def search_movies():
 
 @app.route('/recommendations', methods=['GET'])
 def get_recommendations():
-    """Returns personalized recommendations."""
+    """Returns personalized recommendations based on user's search histroy"""
     try:
         recs = get_weighted_recommendations(movies_df)
         
+        # Clean up the data same as search results
         cleaned_recs = []
         for movie in recs:
             cleaned_movie = {}
@@ -277,7 +290,7 @@ def get_recommendations():
                 else:
                     cleaned_movie[key] = value
             
-            # Try to get high-quality poster
+            # Get better posters for recommendations too
             if OMDB_API_KEY != "YOUR_API_KEY_HERE":
                 hq_poster = get_high_quality_poster(
                     cleaned_movie.get('Series_Title', ''),
@@ -297,12 +310,12 @@ def get_recommendations():
 
 @app.route('/profile', methods=['GET'])
 def get_profile():
-    """Returns the raw user profile data."""
+    """Returns the user's preference data"""
     return jsonify(user_profile)
 
 @app.route('/reset', methods=['POST'])
 def reset_profile():
-    """Resets the ML tracking."""
+    """Clears the user profile - usefull if they want to start over"""
     global user_profile
     user_profile = { "searched_genres": {}, "searched_decades": {}, "rating_history": [] }
     return jsonify({"message": "Profile reset"})

@@ -1,53 +1,54 @@
-// Change port from 5000 to 5001 to match backend
+// Backend runs on port 5001 - make sure its actualy running before complaining it doesnt work
 const API_URL = "http://localhost:5001";
 
-// --- Initialization ---
+// --- Setup when page loads ---
 document.addEventListener('DOMContentLoaded', () => {
-    fetchFilters();
-    fetchRecommendations();
-    fetchProfile();
+    fetchFilters();           // load dropdown options
+    fetchRecommendations();   // get initial movie suggestions
+    fetchProfile();           // check if user has any search history
 });
 
-// --- Navigation Logic ---
+// --- Switching between pages ---
 function showView(viewId) {
-    // Hide all views
+    // Hide everything first
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    // Show requested view
+    // Show the page we want
     const target = document.getElementById(viewId + '-view');
     if (target) target.classList.add('active');
     
-    // Update Nav State
+    // Update which nav button is highlighted
     document.querySelectorAll('.nav-links button').forEach(btn => btn.classList.remove('active-nav'));
-    // (Simple logic to highlight home/search buttons based on viewId)
+    // This could probably be done better but it works so whatever
     if(viewId === 'home') document.querySelector("button[onclick=\"showView('home')\"]").classList.add('active-nav');
     if(viewId === 'search') document.querySelector("button[onclick=\"showView('search')\"]").classList.add('active-nav');
 }
 
-// --- Data Fetching Functions ---
+// --- Getting data from the backend ---
 
-// 1. Fetch Filters for Dropdowns
+// Load the dropdown filter options
 async function fetchFilters() {
     try {
         const res = await fetch(`${API_URL}/filters`);
         
-        // 1. Check if the server responded with OK (200)
+        // Make sure server actually responded
         if (!res.ok) {
             throw new Error(`Server Error: ${res.status} ${res.statusText}`);
         }
 
-        // 2. Read text first to debug if it's not JSON
+        // Read the response as text first incase its not JSON
         const text = await res.text();
         
-        // 3. Try to parse it
+        // Try to parse as JSON
         try {
             const data = JSON.parse(text);
             
-            // If success, proceed as normal
+            // Populate the dropdowns with the data
             populateDropdown('genre-select', data.genres);
             populateDropdown('decade-select', data.decades);
             
+            // Rating dropdown needs special formatting
             const ratingSel = document.getElementById('rating-select');
-            ratingSel.innerHTML = '<option value="0">All Ratings</option>'; // Clear previous
+            ratingSel.innerHTML = '<option value="0">All Ratings</option>';
             data.ratings.forEach(r => {
                 const opt = document.createElement('option');
                 opt.value = r;
@@ -62,14 +63,14 @@ async function fetchFilters() {
 
     } catch (err) {
         console.error("Failed to load filters:", err);
-        // Show a visual warning to the user
+        // Show error message to user cuz connection failed
         document.querySelector('.hero p').textContent = 
             "⚠️ Error: Cannot connect to Backend. Is 'app.py' running on Port 5001?";
         document.querySelector('.hero p').style.color = "#ff6b6b";
     }
 }
 
-// 2. Fetch Personalized Recommendations
+// Get personalized recommendations from the backend
 async function fetchRecommendations() {
     const grid = document.getElementById('recommendations-grid');
     grid.innerHTML = '<div class="loading">Thinking... (Crunching numbers) 🧠</div>';
@@ -83,24 +84,24 @@ async function fetchRecommendations() {
     }
 }
 
-// 3. Fetch User Profile Stats
+// Get the user's preference profile
 async function fetchProfile() {
     try {
         const res = await fetch(`${API_URL}/profile`);
         const data = await res.json();
         
-        // Only show stats panel if user has history
+        // Only show the stats panel if they actualy searched for stuff
         const hasHistory = Object.keys(data.searched_genres).length > 0;
         const statsPanel = document.getElementById('user-stats');
         
         if (hasHistory) {
             statsPanel.style.display = 'block';
             
-            // Get top genre
+            // Figure out thier top genre
             const topGenre = Object.entries(data.searched_genres)
                 .sort((a,b) => b[1] - a[1])[0][0];
             
-            // Get top decade
+            // And their favorite decade
             const topDecade = Object.entries(data.searched_decades)
                 .sort((a,b) => b[1] - a[1])[0][0];
                 
@@ -114,18 +115,18 @@ async function fetchProfile() {
     }
 }
 
-// 4. Handle Search
+// Handle when user searches for movies
 async function handleSearch(e) {
     e.preventDefault();
     const genre = document.getElementById('genre-select').value;
     const decade = document.getElementById('decade-select').value;
     const rating = document.getElementById('rating-select').value;
     
-    console.log("🔍 Search params:", { genre, decade, rating }); // Debug log
+    console.log("🔍 Search params:", { genre, decade, rating });
     
     const payload = { genre, decade, min_rating: rating };
     
-    // Switch to results view and show loading
+    // Switch to results view and show loading spinner
     showView('results');
     const grid = document.getElementById('results-grid');
     grid.innerHTML = '<div class="loading">🔍 Searching database...</div>';
@@ -138,9 +139,10 @@ async function handleSearch(e) {
         });
         
         const movies = await res.json();
-        console.log("📦 Received movies:", movies); // Debug log
-        console.log("📊 Number of movies:", movies.length); // Debug log
+        console.log("📦 Received movies:", movies);
+        console.log("📊 Number of movies:", movies.length);
         
+        // Check if we actualy got results
         if (!movies || movies.length === 0) {
             grid.innerHTML = '<div class="loading">No movies found matching criteria. Try different filters! 🤷‍♂️</div>';
             return;
@@ -148,9 +150,8 @@ async function handleSearch(e) {
         
         renderMovies(movies, grid);
         
-        // Refresh profile stats in background since search updates history
+        // Refresh the profile and recommendations in background
         fetchProfile(); 
-        // Refresh home recommendations for next time
         fetchRecommendations();
     } catch (err) {
         console.error("❌ Search error:", err);
@@ -158,15 +159,15 @@ async function handleSearch(e) {
     }
 }
 
-// 5. Reset Profile
+// Reset the user's profile
 async function resetProfile() {
     if(confirm("Clear your taste profile? This resets recommendations.")) {
         await fetch(`${API_URL}/reset`, { method: 'POST' });
-        location.reload();
+        location.reload();  // just reload the page, easiest way
     }
 }
 
-// --- Helper: Render Cards ---
+// --- Display the movie cards ---
 function renderMovies(movies, container) {
     container.innerHTML = '';
     
@@ -176,7 +177,7 @@ function renderMovies(movies, container) {
     }
     
     movies.forEach(movie => {
-        // Create movie card with poster and info
+        // Create a card for each movie
         const card = document.createElement('div');
         card.className = 'movie-card';
         card.innerHTML = `
@@ -199,6 +200,7 @@ function renderMovies(movies, container) {
     });
 }
 
+// Helper function to populate dropdowns
 function populateDropdown(id, items) {
     const sel = document.getElementById(id);
     items.forEach(item => {
