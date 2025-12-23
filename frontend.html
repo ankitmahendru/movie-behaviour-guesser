@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMatch AI - Movie Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 50px 20px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+            background: linear-gradient(to right, #ffd89b, #19547b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .search-form {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group option {
+            background: #2d3748;
+            color: white;
+        }
+
+        .user-profile {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .profile-item h4 {
+            color: #ffd89b;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .profile-item p {
+            font-size: 13px;
+            color: #e2e8f0;
+            margin-bottom: 5px;
+        }
+
+        .movies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .movie-card {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .movie-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .movie-card img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+        }
+
+        .movie-info {
+            padding: 15px;
+        }
+
+        .movie-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .movie-rating {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #fbbf24;
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .movie-details {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #cbd5e0;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            overflow: hidden;
+            display: flex;
+            transition: transform 0.3s;
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .result-card img {
+            width: 150px;
+            height: 225px;
+            object-fit: cover;
+        }
+
+        .result-info {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 20px;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 50px;
+            font-size: 20px;
+            color: #cbd5e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                🎬 CineMatch AI
+            </div>
+            <div class="nav-buttons">
+                <button class="btn btn-primary" onclick="showSection('home')">Home</button>
+                <button class="btn btn-secondary" onclick="showSection('search')">Search</button>
+            </div>
+        </header>
+
+        <!-- Home Section -->
+        <div id="home" class="section active">
+            <div class="hero">
+                <h1>Your Personalized Cinema</h1>
+                <p style="font-size: 18px; color: #e2e8f0;">Powered by Machine Learning</p>
+            </div>
+
+            <div id="userProfileSection" style="display: none;">
+                <div class="user-profile">
+                    <h2>📊 Your Taste Profile</h2>
+                    <div class="profile-grid" id="profileGrid"></div>
+                </div>
+            </div>
+
+            <h2 style="margin-bottom: 20px;">🎯 Recommended For You</h2>
+            <div class="movies-grid" id="recommendationsGrid"></div>
+        </div>
+
+        <!-- Search Section -->
+        <div id="search" class="section">
+            <div class="hero">
+                <h1>Find Your Perfect Movie</h1>
+                <p style="font-size: 18px; color: #e2e8f0;">Select your preferences to discover top-rated films</p>
+            </div>
+
+            <div class="search-form">
+                <div class="form-group">
+                    <label>🎬 Genre</label>
+                    <select id="genreSelect">
+                        <option value="">Select Genre</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>📅 Decade</label>
+                    <select id="decadeSelect">
+                        <option value="">Select Decade</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>🌍 Language</label>
+                    <select id="languageSelect">
+                        <option value="">Select Language</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%; padding: 15px; font-size: 18px;" onclick="searchMovies()">
+                    Find Movies
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 id="resultsTitle">Search Results</h2>
+                <button class="btn btn-primary" onclick="showSection('search')">New Search</button>
+            </div>
+            <div id="loadingMessage" class="loading" style="display: none;">
+                🔍 Searching for movies...
+            </div>
+            <div id="errorMessage" class="error" style="display: none;"></div>
+            <div class="results-grid" id="resultsGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        // This is where the backend is running - change if you use a different port
+        const API_URL = 'http://localhost:5000';
+        let userProfile = null;
+
+        // Initialize the app when the page loads
+        async function init() {
+            await loadFilters();           // Get the dropdown options from backend
+            await loadRecommendations();   // Load personalized movie suggestions
+            await loadUserProfile();       // Get the user's viewing history
+        }
+
+        // Load filter options from the backend
+        async function loadFilters() {
+            try {
+                const response = await fetch(`${API_URL}/filters`);
+                const data = await response.json();
+
+                // Get references to our dropdown menus
+                const genreSelect = document.getElementById('genreSelect');
+                const decadeSelect = document.getElementById('decadeSelect');
+                const languageSelect = document.getElementById('languageSelect');
+
+                // Populate the genre dropdown
+                data.genres.forEach(genre => {
+                    const option = document.createElement('option');
+                    option.value = genre;
+                    option.textContent = genre;
+                    genreSelect.appendChild(option);
+                });
+
+                // Populate the decade dropdown
+                data.decades.forEach(decade => {
+                    const option = document.createElement('option');
+                    option.value = decade;
+                    option.textContent = decade;
+                    decadeSelect.appendChild(option);
+                });
+
+                // Populate the language dropdown
+                data.languages.forEach(language => {
+                    const option = document.createElement('option');
+                    option.value = language;
+                    option.textContent = language;
+                    languageSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading filters:', error);
+            }
+        }
+
+        // Load personalized movie recommendations
+        async function loadRecommendations() {
+            try {
+                const response = await fetch(`${API_URL}/recommendations`);
+                const data = await response.json();
+                displayRecommendations(data.movies);
+            } catch (error) {
+                console.error('Error loading recommendations:', error);
+            }
+        }
+
+        // Load the user's viewing profile
+        async function loadUserProfile() {
+            try {
+                const response = await fetch(`${API_URL}/profile`);
+                const data = await response.json();
+                userProfile = data;
+                displayUserProfile(data);
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            }
+        }
+
+        // Show the user's taste profile on screen
+        function displayUserProfile(profile) {
+            // If they haven't searched for anything yet, don't show the profile section
+            if (!profile.genres || Object.keys(profile.genres).length === 0) {
+                document.getElementById('userProfileSection').style.display = 'none';
+                return;
+            }
+
+            // Show the profile section and populate it with their preferences
+            document.getElementById('userProfileSection').style.display = 'block';
+            const profileGrid = document.getElementById('profileGrid');
+            profileGrid.innerHTML = `
+                <div class="profile-item">
+                    <h4>Top Genres</h4>
+                    ${Object.entries(profile.genres)
+                        .sort((a, b) => b[1] - a[1])  // sort by count, highest first
+                        .slice(0, 3)                   // show top 3
+                        .map(([genre, count]) => `<p>${genre} (${count})</p>`)
+                        .join('')}
+                </div>
+                <div class="profile-item">
+                    <h4>Preferred Decades</h4>
+                    ${Object.entries(profile.decades)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 3)
+                        .map(([decade, count]) => `<p>${decade} (${count})</p>`)
+                        .join('')}
+                </div>
+                <div class="profile-item">
+                    <h4>Languages</h4>
+                    ${Object.entries(profile.languages)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 3)
+                        .map(([language, count]) => `<p>${language} (${count})</p>`)
+                        .join('')}
+                </div>
+            `;
+        }
+
+        // Display the recommended movies in a nice grid
+        function displayRecommendations(movies) {
+            const grid = document.getElementById('recommendationsGrid');
+            grid.innerHTML = movies.map(movie => `
+                <div class="movie-card">
+                    <img src="${movie.poster}" alt="${movie.title}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Image'">
+                    <div class="movie-info">
+                        <div class="movie-title">${movie.title}</div>
+                        <div class="movie-rating">⭐ ${movie.rating}</div>
+                        <div class="movie-details">
+                            ${movie.year} • ${movie.genre}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Handle the movie search when user clicks "Find Movies"
+        async function searchMovies() {
+            // Get what the user selected from the dropdowns
+            const genre = document.getElementById('genreSelect').value;
+            const decade = document.getElementById('decadeSelect').value;
+            const language = document.getElementById('languageSelect').value;
+
+            // Make sure they filled everything out
+            if (!genre || !decade || !language) {
+                alert('Please select all filters');
+                return;
+            }
+
+            // Switch to results page and show loading message
+            showSection('results');
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('resultsGrid').innerHTML = '';
+
+            try {
+                // Send the search request to our backend
+                const response = await fetch(`${API_URL}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ genre, decade, language })
+                });
+
+                const data = await response.json();
+                document.getElementById('loadingMessage').style.display = 'none';
+
+                if (data.movies && data.movies.length > 0) {
+                    // Got results! Show them
+                    document.getElementById('resultsTitle').textContent = `Top ${data.movies.length} Movies`;
+                    displayResults(data.movies);
+                    
+                    // Reload recommendations since the user profile just got updated
+                    await loadRecommendations();
+                    await loadUserProfile();
+                } else {
+                    // No movies found with those filters
+                    document.getElementById('resultsGrid').innerHTML = `
+                        <div class="no-results">
+                            <p>😕 No movies found matching your criteria.</p>
+                            <p style="margin-top: 10px;">Try different filters!</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                // Something went wrong - probably backend is down
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Display search results in a detailed layout
+        function displayResults(movies) {
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = movies.map(movie => `
+                <div class="result-card">
+                    <img src="${movie.poster}" alt="${movie.title}" onerror="this.src='https://via.placeholder.com/150x225?text=No+Image'">
+                    <div class="result-info">
+                        <h3 style="margin-bottom: 10px;">${movie.title}</h3>
+                        <div class="movie-rating" style="margin-bottom: 15px;">⭐ ${movie.rating}</div>
+                        <div style="color: #cbd5e0; font-size: 14px;">
+                            <p style="margin-bottom: 5px;">📅 ${movie.year}</p>
+                            <p style="margin-bottom: 5px;">🎬 ${movie.genre}</p>
+                            <p>🌍 ${movie.language}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Switch between different sections (home, search, results)
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            // Show the one we want
+            document.getElementById(sectionName).classList.add('active');
+        }
+
+        // Start everything when the page loads
+        init();
+    </script>
+</body>
+</html>
