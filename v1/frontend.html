@@ -331,9 +331,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label>🌍 Language</label>
-                    <select id="languageSelect">
-                        <option value="">Select Language</option>
+                    <label>⭐ Minimum Rating</label>
+                    <select id="ratingSelect">
+                        <option value="">Select Minimum Rating</option>
                     </select>
                 </div>
 
@@ -378,7 +378,7 @@
                 // Get references to our dropdown menus
                 const genreSelect = document.getElementById('genreSelect');
                 const decadeSelect = document.getElementById('decadeSelect');
-                const languageSelect = document.getElementById('languageSelect');
+                const ratingSelect = document.getElementById('ratingSelect');
 
                 // Populate the genre dropdown
                 data.genres.forEach(genre => {
@@ -396,12 +396,12 @@
                     decadeSelect.appendChild(option);
                 });
 
-                // Populate the language dropdown
-                data.languages.forEach(language => {
+                // Populate the rating dropdown (5.0 to 10.0 in 0.5 increments)
+                data.ratings.forEach(rating => {
                     const option = document.createElement('option');
-                    option.value = language;
-                    option.textContent = language;
-                    languageSelect.appendChild(option);
+                    option.value = rating;
+                    option.textContent = `${rating}+`;
+                    ratingSelect.appendChild(option);
                 });
             } catch (error) {
                 console.error('Error loading filters:', error);
@@ -460,11 +460,11 @@
                         .join('')}
                 </div>
                 <div class="profile-item">
-                    <h4>Languages</h4>
-                    ${Object.entries(profile.languages)
+                    <h4>Rating Preferences</h4>
+                    ${Object.entries(profile.ratings)
                         .sort((a, b) => b[1] - a[1])
                         .slice(0, 3)
-                        .map(([language, count]) => `<p>${language} (${count})</p>`)
+                        .map(([rating, count]) => `<p>${rating}+ (${count})</p>`)
                         .join('')}
                 </div>
             `;
@@ -492,10 +492,10 @@
             // Get what the user selected from the dropdowns
             const genre = document.getElementById('genreSelect').value;
             const decade = document.getElementById('decadeSelect').value;
-            const language = document.getElementById('languageSelect').value;
+            const min_rating = document.getElementById('ratingSelect').value;
 
             // Make sure they filled everything out
-            if (!genre || !decade || !language) {
+            if (!genre || !decade || !min_rating) {
                 alert('Please select all filters');
                 return;
             }
@@ -513,7 +513,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ genre, decade, language })
+                    body: JSON.stringify({ genre, decade, min_rating: parseFloat(min_rating) })
                 });
 
                 const data = await response.json();
@@ -556,7 +556,6 @@
                         <div style="color: #cbd5e0; font-size: 14px;">
                             <p style="margin-bottom: 5px;">📅 ${movie.year}</p>
                             <p style="margin-bottom: 5px;">🎬 ${movie.genre}</p>
-                            <p>🌍 ${movie.language}</p>
                         </div>
                     </div>
                 </div>

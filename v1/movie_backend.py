@@ -19,7 +19,7 @@ movies_df = None
 user_profile = {
     'genres': {},      # counts how many times they search each genre
     'decades': {},     # tracks their preferred time periods
-    'languages': {}    # keeps track of language preferences
+    'ratings': {}      # keeps track of rating preferences
 }
 
 def load_dataset():
@@ -111,18 +111,20 @@ def prepare_data():
     movies_df['decade'] = (movies_df['year'] // 10) * 10
     movies_df['decade_str'] = movies_df['decade'].astype(str) + 's'
     
-    # If language isn't in the dataset, assume English
-    if 'language' not in movies_df.columns:
-        movies_df['language'] = 'English'
-    
-    # Some movies have multiple genres like "Action, Drama" - just take the first one
-    if 'genre' in movies_df.columns:
-        movies_df['genre'] = movies_df['genre'].apply(lambda x: str(x).split(',')[0].strip() if pd.notna(x) else 'Unknown')
-    
     # Make sure rating is a number we can actually use
     if 'rating' in movies_df.columns:
         movies_df['rating'] = pd.to_numeric(movies_df['rating'], errors='coerce')
         movies_df = movies_df.dropna(subset=['rating'])
+        
+        # Round ratings to nearest 0.5 (5.0, 5.5, 6.0, etc.)
+        movies_df['rating'] = (movies_df['rating'] * 2).round() / 2
+        
+        # Create rating range buckets for filtering (e.g., "8.0-8.5")
+        movies_df['rating_range'] = movies_df['rating'].apply(lambda x: f"{x:.1f}")
+    
+    # Some movies have multiple genres like "Action, Drama" - just take the first one
+    if 'genre' in movies_df.columns:
+        movies_df['genre'] = movies_df['genre'].apply(lambda x: str(x).split(',')[0].strip() if pd.notna(x) else 'Unknown')
     
     # If there's no poster URL, use a placeholder
     if 'poster' not in movies_df.columns:
@@ -135,7 +137,7 @@ def get_decade_from_year(year):
     # Simple helper function - turns 1994 into "1990s"
     return f"{(year // 10) * 10}s"
 
-def update_user_profile(genre, decade, language):
+def update_user_profile(genre, decade, min_rating):
     """Update user profile with ML-based tracking"""
     global user_profile
     
@@ -144,7 +146,7 @@ def update_user_profile(genre, decade, language):
     # Later we can use this to recommend similar stuff
     user_profile['genres'][genre] = user_profile['genres'].get(genre, 0) + 1
     user_profile['decades'][decade] = user_profile['decades'].get(decade, 0) + 1
-    user_profile['languages'][language] = user_profile['languages'].get(language, 0) + 1
+    user_profile['ratings'][min_rating] = user_profile['ratings'].get(min_rating, 0) + 1
     
     return user_profile
 
@@ -164,11 +166,12 @@ def calculate_similarity_score(movie_row, profile):
     if movie_row['decade_str'] in profile['decades']:
         score += profile['decades'][movie_row['decade_str']] * 2
     
-    # Language preference also counts (2x weight)
-    if movie_row['language'] in profile['languages']:
-        score += profile['languages'][movie_row['language']] * 2
+    # Rating preference - if they search for highly-rated movies, prioritize those (2x weight)
+    rating_str = f"{movie_row['rating']:.1f}"
+    if rating_str in profile['ratings']:
+        score += profile['ratings'][rating_str] * 2
     
-    # Higher rated movies get a small boost regardless (0.5x weight)
+    # Higher rated movies get a boost regardless (0.5x weight)
     # Everyone likes good movies!
     score += movie_row['rating'] * 0.5
     
@@ -192,23 +195,25 @@ def generate_recommendations(profile, limit=6):
         top_movies = movies_df.nlargest(limit, 'similarity_score')
     
     # Return just the columns we need for the frontend
-    return top_movies[['title', 'year', 'genre', 'rating', 'language', 'poster']].to_dict('records')
+    return top_movies[['title', 'year', 'genre', 'rating', 'poster']].to_dict('records')
 
 @app.route('/filters', methods=['GET'])
 def get_filters():
     """Get available filter options"""
     global movies_df
     
-    # Send back all the unique genres, decades, and languages
+    # Send back all the unique genres, decades, and rating ranges
     # The frontend uses these to populate the dropdown menus
     genres = sorted(movies_df['genre'].unique().tolist())
     decades = sorted(movies_df['decade_str'].unique().tolist(), reverse=True)  # newest first
-    languages = sorted(movies_df['language'].unique().tolist())
+    
+    # Generate rating options in 0.5 increments from 5.0 to 10.0
+    ratings = [round(x * 0.5, 1) for x in range(10, 21)]  # 10*0.5=5.0 to 20*0.5=10.0
     
     return jsonify({
         'genres': genres,
         'decades': decades,
-        'languages': languages
+        'ratings': ratings
     })
 
 @app.route('/search', methods=['POST'])
@@ -220,23 +225,24 @@ def search_movies():
     data = request.json
     genre = data.get('genre')
     decade = data.get('decade')
-    language = data.get('language')
+    min_rating = data.get('min_rating')
     
     # Filter the dataset to match what they're looking for
+    # For ratings, get movies with rating >= min_rating
     filtered = movies_df[
         (movies_df['genre'] == genre) &
         (movies_df['decade_str'] == decade) &
-        (movies_df['language'] == language)
+        (movies_df['rating'] >= float(min_rating))
     ]
     
     # Sort by rating and grab the top 10
     top_movies = filtered.nlargest(10, 'rating')
     
     # Remember what they searched for - this helps us learn their preferences
-    update_user_profile(genre, decade, language)
+    update_user_profile(genre, decade, f"{min_rating:.1f}")
     
     # Convert to a format the frontend can easily work with
-    movies_list = top_movies[['title', 'year', 'genre', 'rating', 'language', 'poster']].to_dict('records')
+    movies_list = top_movies[['title', 'year', 'genre', 'rating', 'poster']].to_dict('records')
     
     return jsonify({
         'movies': movies_list,
@@ -273,7 +279,7 @@ def reset_profile():
     user_profile = {
         'genres': {},
         'decades': {},
-        'languages': {}
+        'ratings': {}
     }
     
     return jsonify({'message': 'Profile reset successfully'})
