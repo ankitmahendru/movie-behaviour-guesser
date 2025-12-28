@@ -1,162 +1,113 @@
-# CineMatch AI - Movie Recomendation System
+# 🎥 Movie Behaviour Guesser
 
-A machine learning powered movie recommendation app that learns your taste and suggests stuff you'll actualy want to watch (hopefully).
+---
 
-## What it does
+> *Because deep down, we all know the protagonist won't die in the first ten minutes, no matter how many explosions occur.*
 
-- Gives you personalized movie recomendations using some fancy ML algorithms
-- Search movies by genre, decade, and minimum IMDB rating
-- Tracks what you like and gets better over time (kinda creepy but usefull)
-- High quality movie posters cuz those tiny blurry ones are annoying
-- Modern UI that doesnt look like it was made in 2005
-- Updates recomendations in real-time as you search
+<div align="center">
 
-## Tech stuff
+</div>
 
-**Backend (the boring part):**
-- Python 3.x
-- Flask for the API
-- Pandas for data wrangling
-- scikit-learn for the "AI" (its not really AI but sounds cooler)
-- Kaggle Hub to download movie data
+---
 
-**Frontend (the pretty part):**
-- HTML5
-- CSS3 with that glassmorphism effect everyone loves
-- Vanilla JavaScript cuz we dont need React for everything
-- Fetch API for talking to backend
+## 🧐 What is this?
 
-## How to get it running
+**Movie Behaviour Guesser** is a specialized tool designed to analyze film scenarios and predict what happens next. Whether it's a horror movie character deciding to investigate a strange noise in the basement or a rom-com lead running through an airport, this engine uses a backend of "cinematic logic" to guess the outcome.
 
-### What you need first
+It serves as a playground for testing how predictable (or occasionally subversive) modern storytelling can be when processed through a structured behavioral engine.
 
-- Python 3.7 or newer (check with `python --version`)
-- pip (should come with Python)
-- OMDB API key - get one free at https://www.omdbapi.com/apikey.aspx (takes like 2 minutes)
+---
 
-### Actualy setting it up
+## ✨ Key Features
 
-1. Clone this thing
+* **Character Logic Parsing**: Analyzes character archetypes to determine their most likely (and often most foolish) next move.
+* **Dual-Version Architecture**:
+* **V1**: A streamlined Python backend paired with a functional HTML frontend for core logic testing.
+* **V2**: An enhanced interactive experience with a polished UI, dedicated styling, and modular JavaScript.
+
+
+* **Trope Awareness**: Recognizes standard movie patterns to provide "educated" guesses on plot twists.
+* **Interactive Web Interface**: Simple, browser-based controls to input scenarios and receive behavioral predictions instantly.
+
+---
+
+## 📂 Project Structure
+
+Behold the evolution of a character's bad decisions:
+
 ```bash
-git clone https://github.com/yourusername/cinematch-ai.git
-cd cinematch-ai
+movie-behaviour-guesser/
+├── v1/                      # The "Original Cut" (Core Logic)
+│   ├── movie_backend.py     # Python logic for behavioral guessing
+│   └── frontend.html        # Simple interface for V1
+├── v2/                      # The "Special Edition" (Enhanced UI)
+│   ├── app.py               # Flask-based backend server
+│   ├── index.html           # Structured modern frontend
+│   ├── script.js            # Interactive UI logic
+│   └── style.css            # Custom cinematic styling
+└── README.md                # This script.
+
 ```
 
-2. Install the Python packages
+---
+
+## 🛠 Tech Stack
+
+| Component | Technology | Why? |
+| --- | --- | --- |
+| **Logic Engine** | Python | For processing complex "if-they-do-this-they-die" logic. |
+| **Web Server** | Flask | To bridge the gap between Python scripts and your browser. |
+| **Frontend** | HTML5 / CSS3 | Making predictable outcomes look aesthetically pleasing. |
+| **Interactivity** | JavaScript | For real-time updates without refreshing the page. |
+
+---
+
+## 💿 Installation & Setup
+
+Ready to start judging fictional characters? Choose your version:
+
+### 1. Clone the Repo
+
 ```bash
-pip install flask flask-cors pandas numpy scikit-learn kagglehub requests
+git clone https://github.com/ankitmahendru/movie-behaviour-guesser.git
+cd movie-behaviour-guesser
+
 ```
 
-If that doesnt work try `pip3` instead of `pip`
+### 2. Run Version 2 (Recommended)
 
-3. Add your OMDB API key
-
-Open `app.py` and find this line:
-```python
-OMDB_API_KEY = "faeba269"
-```
-Replace that with your actual key from OMDB
-
-4. Start the backend
 ```bash
+cd v2
 python app.py
+
 ```
 
-You should see something like "Movie Recommendation Backend Running on http://localhost:5001"
+*Open your browser and navigate to the local host address provided in the terminal.*
 
-5. Open the frontend
+---
 
-Just double-click `index.html` or right-click and open with your browser. Or if you want to be fancy:
-```bash
-python -m http.server 8000
-```
-Then go to http://localhost:8000
+## 🎮 How to Use
 
-## How to use it
+1. **Enter a Scenario**: Type in a classic movie setup (e.g., "The group decides to split up in the haunted woods").
+2. **Analyze**: Let the backend process the sheer level of trope-cliché involved.
+3. **The Result**: Receive a prediction of the character's behavior and their likely survival rate.
 
-### Home Page
-- See movie recomendations based on what you searched before
-- Check your "taste profile" (what genres and decades you search for most)
+---
 
-### Search
-- Pick a genre, decade, and minimum rating
-- Get the top 10 movies that match
-- Each search helps the app learn what you like
+## 🤝 Contribution Guide
 
-### Reset Profile
-- Clears your search history and starts fresh
-- Usefull if you let your friend use it and now all the recomendations are weird
+Think you've found a trope I missed? Or maybe you have a better survival algorithm for the "final girl"?
 
-## Folder structure
-```
-cinematch-ai/
-│
-├── app.py              # Backend server
-├── index.html          # Main page
-├── style.css           # Makes it look pretty
-├── script.js           # Frontend logic
-└── README.md           # You are here
-```
+1. **Fork it.**
+2. **Branch it** (`git checkout -b feature/new-trope`).
+3. **Commit it** (Keep the humor intact).
+4. **Push it.**
+5. **PR it.**
 
-## The "AI" explained
+---
 
-The recomendation system uses weighted content-based filtering (fancy words for matching stuff you searched before):
+<div align="center">
 
-- Genre Match: 3x weight (most important)
-- Decade Match: 2x weight
-- Rating Preference: 2x weight  
-- Base Rating Boost: 0.5x weight (everyone likes good movies)
+**Made with love (and too many movie marathons) by PadhoAI** ❤️
 
-It learns from your searches and gets better at recommending stuff over time.
-
-## API endpoints (for nerds)
-
-### GET /filters
-Gets available genres, decades, and ratings for dropdowns
-
-### POST /search
-Search for movies
-```json
-{
-  "genre": "Drama",
-  "decade": "1990",
-  "min_rating": 8.0
-}
-```
-
-### GET /recommendations
-Get personalized recomendations based on search history
-
-### GET /profile
-See what the system knows about your preferences
-
-### POST /reset
-Clear everything and start over
-
-## About the data
-
-Uses IMDB Top 1000 Movies from Kaggle:
-https://www.kaggle.com/datasets/harshitshankhdhar/imdb-dataset-of-top-1000-movies-and-tv-shows
-
-If Kaggle download fails it uses backup data so app still works.
-
-## Changing stuff
-
-### Use a different port
-
-In `app.py`:
-```python
-app.run(debug=True, port=5001)  # change this number
-```
-
-In `script.js`:
-```javascript
-const API_URL = "http://localhost:5001";  # match the port
-```
-
-### Turn off high quality posters
-
-If you dont have an OMDB key or hit the rate limit, just leave it blank:
-```python
-OMDB_API_KEY = ""
-``
+</div>
